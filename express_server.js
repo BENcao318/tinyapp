@@ -47,6 +47,21 @@ app.post("/urls/:shortURL/delete", (req, res) => {
   res.redirect("/urls");
 })
 
+app.post("/urls/:shortURL/redirect", (req, res) => {  //redirect the page to the corresponding url when press Edit button
+  res.redirect(`/urls/${req.params.shortURL}`);
+})
+
+app.post("/urls/:shortURL/redirect", (req, res) => {
+  res.redirect(`/urls/${req.params.shortURL}`);
+})
+
+app.post("/urls/:shortURL/submit", (req, res) => {
+  urlDatabase[req.params.shortURL] = req.body.submitURL;
+  res.redirect('/urls');
+
+  res.end();
+})
+
 app.get("/u/:shortURL", (req, res) => {
   const longURL = urlDatabase[req.params.shortURL];
   res.redirect(longURL);
