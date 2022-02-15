@@ -30,7 +30,7 @@ app.use(cookieParser());
 app.get("/urls", (req, res) => {
   const templateVars = { 
     urls: urlDatabase,
-    username: req.cookies["username"],
+    username: req.cookies["user_id"],
   };
   res.render("urls_index", templateVars);
 });
@@ -38,7 +38,7 @@ app.get("/urls", (req, res) => {
 app.get("/urls/new", (req, res) => {
   const templateVars = {
     urls: urlDatabase,
-    username: req.cookies["username"],
+    username: req.cookies["user_id"],
   }
   res.render("urls_new", templateVars);
 })
@@ -47,7 +47,7 @@ app.get("/urls/:shortURL", (req, res) => {
   const templateVars = { 
     shortURL: req.params.shortURL, 
     longURL: urlDatabase[req.params.shortURL],
-    username: req.cookies["username"],
+    username: req.cookies["user_id"],
   };
   res.render("urls_show", templateVars);
 });
@@ -67,7 +67,7 @@ app.get("/hello", (req, res) => {
 app.get("/register", (req, res) => {
   const templateVars = {
     urls: urlDatabase,
-    username: req.cookies["username"],
+    username: req.cookies["user_id"],
   };
   res.render("register", templateVars);
 });
@@ -83,13 +83,13 @@ app.post("/urls/:shortURL/delete", (req, res) => {
   res.redirect("/urls");
 })
 
-app.post("/urls/:shortURL/redirect", (req, res) => {  //redirect the page to the corresponding url when press Edit button
+/*
+redirect the page to the corresponding url when pressing the 'Edit' button
+*/
+app.post("/urls/:shortURL/redirect", (req, res) => {  
   res.redirect(`/urls/${req.params.shortURL}`);
 })
 
-app.post("/urls/:shortURL/redirect", (req, res) => {
-  res.redirect(`/urls/${req.params.shortURL}`);
-})
 
 app.post("/urls/:shortURL/submit", (req, res) => {
   urlDatabase[req.params.shortURL] = req.body.submitURL;
@@ -98,19 +98,37 @@ app.post("/urls/:shortURL/submit", (req, res) => {
 })
 
 app.post("/login", (req, res) => {
-  res.cookie('username', req.body.username)
+  res.cookie('user_id', req.body.username)
   res.redirect('/urls')
 })
 
 app.post("/logout", (req, res) => {
-  res.clearCookie('username');
+  res.clearCookie('user_id');
   res.redirect('/urls');
 })
 
+/*
+Register post, create new user profile based on the form input
+*/
 app.post("/register", (req, res) => {
-  console.log(req.body.password);
-  console.log(req.body.email);
-  // res.end();
+  if(!req.body.email || !req.body.password) {
+    res.statusCode = 400;
+    res.send('400: Email or Password cannot be empty.')
+  } else if(checkExistingEmail(req.body.email)) {
+    res.statusCode = 400;
+    res.send('400: Email already exist, please provide a new')
+  } else {
+    const randomUserID = generateRandomString();
+    const newUser = {
+      id: randomUserID,
+      password: req.body.password,
+      email: req.body.email,
+    }
+    users[randomUserID] = newUser; 
+    console.log(users)
+    res.cookie('user_id', newUser.id);
+    res.redirect('/urls');
+  }
 })
 
 /*
@@ -135,4 +153,11 @@ function generateRandomString() {
     result += characters.charAt(Math.ceil(Math.random() * characters.length))
   }
   return result;
+}
+
+function checkExistingEmail(emailAddress) {
+  for(let user in users) {
+    if(users[user].email === emailAddress) return true;
+  }
+  return false;
 }
