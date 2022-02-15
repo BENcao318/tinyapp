@@ -4,14 +4,28 @@ const PORT = 8080; // default port 8080
 const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
 
-app.use(bodyParser.urlencoded({extended: true}));
-app.set("view engine", "ejs");
-app.use(cookieParser());
 
 const urlDatabase = {
   "b2xVn2": "http://www.lighthouselabs.ca",
   "9sm5xK": "http://www.google.com"
 };
+
+const users = { 
+  "userRandomID": {
+    id: "userRandomID", 
+    email: "user@example.com", 
+    password: "purple-monkey-dinosaur"
+  },
+  "user2RandomID": {
+    id: "user2RandomID", 
+    email: "user2@example.com", 
+    password: "dishwasher-funk"
+  }
+}
+
+app.use(bodyParser.urlencoded({extended: true}));
+app.set("view engine", "ejs");
+app.use(cookieParser());
 
 app.get("/urls", (req, res) => {
   const templateVars = { 
@@ -50,7 +64,16 @@ app.get("/hello", (req, res) => {
   res.send("<html><body>Hello <b>World</b></body></html>\n");
 });
 
+app.get("/register", (req, res) => {
+  const templateVars = {
+    urls: urlDatabase,
+    username: req.cookies["username"],
+  };
+  res.render("register", templateVars);
+});
+
 app.post("/urls", (req, res) => {
+  urlDatabase[generateRandomString] = req.body.longURL;
   console.log(req.body);  // Log the POST request body to the console
   res.send("OK");
 });
@@ -71,7 +94,6 @@ app.post("/urls/:shortURL/redirect", (req, res) => {
 app.post("/urls/:shortURL/submit", (req, res) => {
   urlDatabase[req.params.shortURL] = req.body.submitURL;
   res.redirect('/urls');
-
   res.end();
 })
 
@@ -85,7 +107,16 @@ app.post("/logout", (req, res) => {
   res.redirect('/urls');
 })
 
-app.get("/u/:shortURL", (req, res) => {
+app.post("/register", (req, res) => {
+  console.log(req.body.password);
+  console.log(req.body.email);
+  // res.end();
+})
+
+/*
+Redirect to the long url address when clicking the short url on short url page
+*/
+app.get("/u/:shortURL", (req, res) => {           
   const longURL = urlDatabase[req.params.shortURL];
   res.redirect(longURL);
 })
@@ -97,5 +128,11 @@ app.listen(PORT, () => {
 });
 
 function generateRandomString() {
-
+  let result = '';
+  const length = 6;
+  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  for(let i = 0; i < length; i++) {
+    result += characters.charAt(Math.ceil(Math.random() * characters.length))
+  }
+  return result;
 }
