@@ -27,6 +27,10 @@ app.use(bodyParser.urlencoded({extended: true}));
 app.set("view engine", "ejs");
 app.use(cookieParser());
 
+
+/*
+Page renderers
+*/
 app.get("/urls", (req, res) => {
   const templateVars = { 
     urls: urlDatabase,
@@ -72,6 +76,18 @@ app.get("/register", (req, res) => {
   res.render("register", templateVars);
 });
 
+app.get("/login", (req, res) => {
+  const templateVars = {
+    urls: urlDatabase,
+    username: req.cookies["user_id"],
+  };
+  res.render("login", templateVars);
+});
+
+
+/*
+POST responses
+*/
 app.post("/urls", (req, res) => {
   urlDatabase[generateRandomString] = req.body.longURL;
   console.log(req.body);  // Log the POST request body to the console
@@ -125,7 +141,6 @@ app.post("/register", (req, res) => {
       email: req.body.email,
     }
     users[randomUserID] = newUser; 
-    console.log(users)
     res.cookie('user_id', newUser.id);
     res.redirect('/urls');
   }
