@@ -22,9 +22,9 @@ const users = {
   },
 };
 
-app.use(bodyParser.urlencoded({ extended: true })); // Use bodyParser to parse the data from request body
-app.set("view engine", "ejs"); // Use ejs as the render engine
-app.use(cookieParser()); // Use Cookie Parser to parse the cookie data
+app.use(bodyParser.urlencoded({ extended: true }));           // Use bodyParser to parse the data from request body
+app.set("view engine", "ejs");          // Use ejs as the render engine
+app.use(cookieParser());            // Use Cookie Parser to parse the cookie data
 
 /*
 Page renderers
