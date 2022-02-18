@@ -31,7 +31,7 @@ Page renderers
 */
 app.get("/urls", (req, res) => {
   const templateVars = {
-    urls: urlDatabase,
+    urls: urlsForUser(req.cookies["user_id"]),
     username: req.cookies["user_id"],
   };
   res.render("urls_index", templateVars);
@@ -89,7 +89,6 @@ app.get("/login", (req, res) => {
 Redirect to the long url address when clicking the short url on short url page
 */
 app.get("/u/:shortURL", (req, res) => {
-  console.log(urlDatabase[req.params.shortURL].longURL);
   const longURL = urlDatabase[req.params.shortURL].longURL;
   res.redirect(longURL);
 });
@@ -98,14 +97,13 @@ app.get("/u/:shortURL", (req, res) => {
 Create new URLs and POST responses
 */
 app.post("/urls", (req, res) => {
-  if(req.cookies["user_id"]) {
+  if(req.cookies["user_id"]) {            //if the user is logged into the page
     urlDatabase[generateRandomString()] = {
       longURL: prefixHttp(req.body.longURL),
       userID: req.cookies["user_id"],
     };
   
     console.log(req.body); // Log the POST request body to the console
-    console.log(urlDatabase)
     res.redirect("urls");
   } else {
     res.redirect("/login");
@@ -116,7 +114,9 @@ app.post("/urls", (req, res) => {
 delete the coresponding shortURL in the database
 */
 app.post("/urls/:shortURL/delete", (req, res) => {
-  delete urlDatabase[req.params.shortURL];
+  if( urlsForUser(req.cookies["user_id"])[req.params.shortURL] ) {            // check if user is logged in when deleting the shortURL
+    delete urlDatabase[req.params.shortURL];
+  }
   res.redirect("/urls");
 });
 
@@ -131,7 +131,9 @@ app.post("/urls/:shortURL/redirect", (req, res) => {
 submit new url in the urls_show page and replace the database shortURL value with new longURL 
 */
 app.post("/urls/:shortURL/submit", (req, res) => {
-  urlDatabase[req.params.shortURL].longURL = prefixHttp(req.body.submittedURL);
+  if( urlsForUser(req.cookies["user_id"])[req.params.shortURL]) {           // check if the user is logged in when trying to edit the longURL 
+    urlDatabase[req.params.shortURL].longURL = prefixHttp(req.body.submittedURL);
+  }
   res.redirect("/urls");
   res.end();
 });
@@ -223,4 +225,14 @@ function prefixHttp(webAddress) {
     return `http://${webAddress}`;
   }
   return webAddress;
+}
+
+function urlsForUser(id) {
+  let userURLDatabase = {};
+  for(let shortURL in urlDatabase) {
+    if(urlDatabase[shortURL].userID === id) {
+      userURLDatabase[shortURL] = urlDatabase[shortURL];
+    }
+  }
+  return userURLDatabase;
 }
