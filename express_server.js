@@ -5,8 +5,8 @@ const bodyParser = require("body-parser");
 const cookieParser = require("cookie-parser");
 
 const urlDatabase = {
-  b2xVn2: "http://www.lighthouselabs.ca",
-  "9sm5xK": "http://www.google.com",
+  b2xVn2: { longURL: "http://www.lighthouselabs.ca", userID: "aJ48lW" },
+  "9sm5xK": { longURL: "http://www.google.com", userID: "aj48lW" },
 };
 
 const users = {
@@ -45,10 +45,13 @@ app.get("/urls/new", (req, res) => {
   res.render("urls_new", templateVars);
 });
 
+/*
+show the urls_show for corresponding shortURL
+*/
 app.get("/urls/:shortURL", (req, res) => {
   const templateVars = {
     shortURL: req.params.shortURL,
-    longURL: urlDatabase[req.params.shortURL],
+    longURL: urlDatabase[req.params.shortURL].longURL,
     username: req.cookies["user_id"],
   };
   res.render("urls_show", templateVars);
@@ -72,7 +75,7 @@ app.get("/register", (req, res) => {
     username: req.cookies["user_id"],
   };
   res.render("register", templateVars);
-});
+}); 
 
 app.get("/login", (req, res) => {
   const templateVars = {
@@ -86,17 +89,27 @@ app.get("/login", (req, res) => {
 Redirect to the long url address when clicking the short url on short url page
 */
 app.get("/u/:shortURL", (req, res) => {
-  const longURL = urlDatabase[req.params.shortURL];
+  console.log(urlDatabase[req.params.shortURL].longURL);
+  const longURL = urlDatabase[req.params.shortURL].longURL;
   res.redirect(longURL);
 });
 
 /*
-POST responses
+Create new URLs and POST responses
 */
 app.post("/urls", (req, res) => {
-  urlDatabase[generateRandomString()] = req.body.longURL;
-  console.log(req.body); // Log the POST request body to the console
-  res.send("OK");
+  if(req.cookies["user_id"]) {
+    urlDatabase[generateRandomString()] = {
+      longURL: prefixHttp(req.body.longURL),
+      userID: req.cookies["user_id"],
+    };
+  
+    console.log(req.body); // Log the POST request body to the console
+    console.log(urlDatabase)
+    res.redirect("urls");
+  } else {
+    res.redirect("/login");
+  }
 });
 
 /*
@@ -118,7 +131,7 @@ app.post("/urls/:shortURL/redirect", (req, res) => {
 submit new url in the urls_show page and replace the database shortURL value with new longURL 
 */
 app.post("/urls/:shortURL/submit", (req, res) => {
-  urlDatabase[req.params.shortURL] = req.body.submittedURL;
+  urlDatabase[req.params.shortURL].longURL = prefixHttp(req.body.submittedURL);
   res.redirect("/urls");
   res.end();
 });
@@ -203,4 +216,11 @@ function checkPassword(username, password) {
     return users[username].id;
   }
   return false;
+}
+
+function prefixHttp(webAddress) {
+  if(!webAddress.includes('http://')) {
+    return `http://${webAddress}`;
+  }
+  return webAddress;
 }
