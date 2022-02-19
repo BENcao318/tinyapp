@@ -3,6 +3,7 @@ const app = express();
 const PORT = 8080; // default port 8080
 const bodyParser = require("body-parser");
 const cookieParser = require("cookie-parser");
+const bcrypt = require('bcrypt');
 
 const urlDatabase = {
   b2xVn2: { longURL: "http://www.lighthouselabs.ca", userID: "aJ48lW" },
@@ -22,9 +23,9 @@ const users = {
   },
 };
 
-app.use(bodyParser.urlencoded({ extended: true }));           // Use bodyParser to parse the data from request body
-app.set("view engine", "ejs");          // Use ejs as the render engine
-app.use(cookieParser());            // Use Cookie Parser to parse the cookie data
+app.use(bodyParser.urlencoded({ extended: true })); // Use bodyParser to parse the data from request body
+app.set("view engine", "ejs"); // Use ejs as the render engine
+app.use(cookieParser()); // Use Cookie Parser to parse the cookie data
 
 /*
 Page renderers
@@ -75,7 +76,7 @@ app.get("/register", (req, res) => {
     username: req.cookies["user_id"],
   };
   res.render("register", templateVars);
-}); 
+});
 
 app.get("/login", (req, res) => {
   const templateVars = {
@@ -97,12 +98,13 @@ app.get("/u/:shortURL", (req, res) => {
 Create new URLs and POST responses
 */
 app.post("/urls", (req, res) => {
-  if(req.cookies["user_id"]) {            //if the user is logged into the page
+  if (req.cookies["user_id"]) {
+    //if the user is logged into the page
     urlDatabase[generateRandomString()] = {
       longURL: prefixHttp(req.body.longURL),
       userID: req.cookies["user_id"],
     };
-  
+
     console.log(req.body); // Log the POST request body to the console
     res.redirect("urls");
   } else {
@@ -114,7 +116,8 @@ app.post("/urls", (req, res) => {
 delete the coresponding shortURL in the database
 */
 app.post("/urls/:shortURL/delete", (req, res) => {
-  if( urlsForUser(req.cookies["user_id"])[req.params.shortURL] ) {            // check if user is logged in when deleting the shortURL
+  if (urlsForUser(req.cookies["user_id"])[req.params.shortURL]) {
+    // check if user is logged in when deleting the shortURL
     delete urlDatabase[req.params.shortURL];
   }
   res.redirect("/urls");
@@ -131,8 +134,11 @@ app.post("/urls/:shortURL/redirect", (req, res) => {
 submit new url in the urls_show page and replace the database shortURL value with new longURL 
 */
 app.post("/urls/:shortURL/submit", (req, res) => {
-  if( urlsForUser(req.cookies["user_id"])[req.params.shortURL]) {           // check if the user is logged in when trying to edit the longURL 
-    urlDatabase[req.params.shortURL].longURL = prefixHttp(req.body.submittedURL);
+  if (urlsForUser(req.cookies["user_id"])[req.params.shortURL]) {
+    // check if the user is logged in when trying to edit the longURL
+    urlDatabase[req.params.shortURL].longURL = prefixHttp(
+      req.body.submittedURL
+    );
   }
   res.redirect("/urls");
   res.end();
@@ -144,10 +150,10 @@ login submit button, use cookie to set the current user_id
 app.post("/login", (req, res) => {
   let username = undefined;
   let userID = undefined;
+  /*
+    check email in users
+  */
   if ((username = checkExistingEmail(req.body.email))) {
-    /*
-      check email in users
-    */
     if ((userID = checkPassword(username, req.body.password))) {
       res.cookie("user_id", userID);
     } else {
@@ -179,12 +185,15 @@ app.post("/register", (req, res) => {
     res.send("400: Email already exist, please provide a new email address.");
   } else {
     const randomUserID = generateRandomString();
+    const hashedPassword = bcrypt.hashSync(req.body.password, 10);
     const newUser = {
       id: randomUserID,
-      password: req.body.password,
+      password: hashedPassword,
       email: req.body.email,
     };
     users[randomUserID] = newUser;
+    console.log(req.body.password)
+    console.log(newUser.password);
     res.cookie("user_id", newUser.id);
     res.redirect("/urls");
   }
@@ -213,15 +222,15 @@ function checkExistingEmail(emailAddress) {
 }
 
 function checkPassword(username, password) {
-  if (users[username].password === password) {
-    //Check each user in the database
+  if (bcrypt.compareSync(password, users[username].password)) {
+    //Check user's password in the database
     return users[username].id;
   }
   return false;
 }
 
 function prefixHttp(webAddress) {
-  if(!webAddress.includes('http://')) {
+  if (!webAddress.includes("http://")) {
     return `http://${webAddress}`;
   }
   return webAddress;
@@ -229,8 +238,8 @@ function prefixHttp(webAddress) {
 
 function urlsForUser(id) {
   let userURLDatabase = {};
-  for(let shortURL in urlDatabase) {
-    if(urlDatabase[shortURL].userID === id) {
+  for (let shortURL in urlDatabase) {
+    if (urlDatabase[shortURL].userID === id) {
       userURLDatabase[shortURL] = urlDatabase[shortURL];
     }
   }
