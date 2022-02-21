@@ -1,9 +1,16 @@
 const express = require("express");
+const methodOverride = require("method-override");
 const app = express();
 const PORT = 8080; // default port 8080
 const bodyParser = require("body-parser");
 const cookieSession = require("cookie-session");
-const bcrypt = require('bcrypt');
+const bcrypt = require("bcrypt");
+const {
+  getUserByEmail,
+  checkPassword,
+  prefixHttp,
+  urlsForUser,
+} = require("./helpers");
 
 const urlDatabase = {
   b2xVn2: { longURL: "http://www.lighthouselabs.ca", userID: "aJ48lW" },
@@ -25,17 +32,20 @@ const users = {
 
 app.use(bodyParser.urlencoded({ extended: true })); // Use bodyParser to parse the data from request body
 app.set("view engine", "ejs"); // Use ejs as the render engine
-app.use(cookieSession({
-  name: 'session',
-  keys: ['Sxo3=T%?3]MGYi:']
-})); // Use Cookie Session to parse the cookie data
+app.use(
+  cookieSession({
+    name: "session",
+    keys: ["Sxo3=T%?3]MGYi:"],
+  })
+); // Use Cookie Session to parse the cookie data
+app.use(methodOverride('_method'));
 
 /*
 Page renderers
 */
 app.get("/urls", (req, res) => {
   const templateVars = {
-    urls: urlsForUser(req.session.user_id),
+    urls: urlsForUser(req.session.user_id, urlDatabase),
     username: req.session.user_id,
   };
   res.render("urls_index", templateVars);
@@ -118,8 +128,8 @@ app.post("/urls", (req, res) => {
 /*
 delete the coresponding shortURL in the database
 */
-app.post("/urls/:shortURL/delete", (req, res) => {
-  if (urlsForUser(req.session.user_id)[req.params.shortURL]) {
+app.delete("/urls/:shortURL", (req, res) => {
+  if (urlsForUser(req.session.user_id, urlDatabase)[req.params.shortURL]) {
     // check if user is logged in when deleting the shortURL
     delete urlDatabase[req.params.shortURL];
   }
@@ -136,8 +146,8 @@ app.post("/urls/:shortURL/redirect", (req, res) => {
 /*
 submit new url in the urls_show page and replace the database shortURL value with new longURL 
 */
-app.post("/urls/:shortURL/submit", (req, res) => {
-  if (urlsForUser(req.session.user_id)[req.params.shortURL]) {
+app.put("/urls/:shortURL", (req, res) => {
+  if (urlsForUser(req.session.user_id, urlDatabase)[req.params.shortURL]) {
     // check if the user is logged in when trying to edit the longURL
     urlDatabase[req.params.shortURL].longURL = prefixHttp(
       req.body.submittedURL
@@ -156,8 +166,8 @@ app.post("/login", (req, res) => {
   /*
     check email in users
   */
-  if ((username = checkExistingEmail(req.body.email))) {
-    if ((userID = checkPassword(username, req.body.password))) {
+  if ((username = getUserByEmail(req.body.email, users))) {
+    if ((userID = checkPassword(username, req.body.password, users))) {
       req.session.user_id = userID;
     } else {
       res.statusCode = 403;
@@ -183,7 +193,7 @@ app.post("/register", (req, res) => {
   if (!req.body.email || !req.body.password) {
     res.statusCode = 400;
     res.send("400: Email or Password cannot be empty.");
-  } else if (checkExistingEmail(req.body.email)) {
+  } else if (getUserByEmail(req.body.email, users)) {
     res.statusCode = 400;
     res.send("400: Email already exist, please provide a new email address.");
   } else {
@@ -195,8 +205,6 @@ app.post("/register", (req, res) => {
       email: req.body.email,
     };
     users[randomUserID] = newUser;
-    // console.log(req.body.password)
-    // console.log(newUser.password);
     req.session.user_id = newUser.id;
     res.redirect("/urls");
   }
@@ -215,36 +223,4 @@ function generateRandomString() {
     result += characters.charAt(Math.ceil(Math.random() * characters.length));
   }
   return result;
-}
-
-function checkExistingEmail(emailAddress) {
-  for (let user in users) {
-    if (users[user].email === emailAddress) return user;
-  }
-  return false;
-}
-
-function checkPassword(username, password) {
-  if (bcrypt.compareSync(password, users[username].password)) {
-    //Check user's password in the database
-    return users[username].id;
-  }
-  return false;
-}
-
-function prefixHttp(webAddress) {
-  if (!webAddress.includes("http://")) {
-    return `http://${webAddress}`;
-  }
-  return webAddress;
-}
-
-function urlsForUser(id) {
-  let userURLDatabase = {};
-  for (let shortURL in urlDatabase) {
-    if (urlDatabase[shortURL].userID === id) {
-      userURLDatabase[shortURL] = urlDatabase[shortURL];
-    }
-  }
-  return userURLDatabase;
 }
