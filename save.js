@@ -2,7 +2,7 @@ const express = require("express");
 const app = express();
 const PORT = 8080; // default port 8080
 const bodyParser = require("body-parser");
-const cookieSession = require("cookie-session");
+const cookieParser = require("cookie-parser");
 const bcrypt = require('bcrypt');
 
 const urlDatabase = {
@@ -25,18 +25,15 @@ const users = {
 
 app.use(bodyParser.urlencoded({ extended: true })); // Use bodyParser to parse the data from request body
 app.set("view engine", "ejs"); // Use ejs as the render engine
-app.use(cookieSession({
-  name: 'session',
-  keys: ['Sxo3=T%?3]MGYi:']
-})); // Use Cookie Session to parse the cookie data
+app.use(cookieParser()); // Use Cookie Parser to parse the cookie data
 
 /*
 Page renderers
 */
 app.get("/urls", (req, res) => {
   const templateVars = {
-    urls: urlsForUser(req.session.user_id),
-    username: req.session.user_id,
+    urls: urlsForUser(req.cookies["user_id"]),
+    username: req.cookies["user_id"],
   };
   res.render("urls_index", templateVars);
 });
@@ -44,7 +41,7 @@ app.get("/urls", (req, res) => {
 app.get("/urls/new", (req, res) => {
   const templateVars = {
     urls: urlDatabase,
-    username: req.session.user_id,
+    username: req.cookies["user_id"],
   };
   res.render("urls_new", templateVars);
 });
@@ -56,7 +53,7 @@ app.get("/urls/:shortURL", (req, res) => {
   const templateVars = {
     shortURL: req.params.shortURL,
     longURL: urlDatabase[req.params.shortURL].longURL,
-    username: req.session.user_id,
+    username: req.cookies["user_id"],
   };
   res.render("urls_show", templateVars);
 });
@@ -76,7 +73,7 @@ app.get("/hello", (req, res) => {
 app.get("/register", (req, res) => {
   const templateVars = {
     urls: urlDatabase,
-    username: req.session.user_id,
+    username: req.cookies["user_id"],
   };
   res.render("register", templateVars);
 });
@@ -84,7 +81,7 @@ app.get("/register", (req, res) => {
 app.get("/login", (req, res) => {
   const templateVars = {
     urls: urlDatabase,
-    username: req.session.user_id,
+    username: req.cookies["user_id"],
   };
   res.render("login", templateVars);
 });
@@ -101,11 +98,11 @@ app.get("/u/:shortURL", (req, res) => {
 Create new URLs and POST responses
 */
 app.post("/urls", (req, res) => {
-  if (req.session.user_id) {
+  if (req.cookies["user_id"]) {
     //if the user is logged into the page
     urlDatabase[generateRandomString()] = {
       longURL: prefixHttp(req.body.longURL),
-      userID: req.session.user_id,
+      userID: req.cookies["user_id"],
     };
 
     console.log(req.body); // Log the POST request body to the console
@@ -119,7 +116,7 @@ app.post("/urls", (req, res) => {
 delete the coresponding shortURL in the database
 */
 app.post("/urls/:shortURL/delete", (req, res) => {
-  if (urlsForUser(req.session.user_id)[req.params.shortURL]) {
+  if (urlsForUser(req.cookies["user_id"])[req.params.shortURL]) {
     // check if user is logged in when deleting the shortURL
     delete urlDatabase[req.params.shortURL];
   }
@@ -137,7 +134,7 @@ app.post("/urls/:shortURL/redirect", (req, res) => {
 submit new url in the urls_show page and replace the database shortURL value with new longURL 
 */
 app.post("/urls/:shortURL/submit", (req, res) => {
-  if (urlsForUser(req.session.user_id)[req.params.shortURL]) {
+  if (urlsForUser(req.cookies["user_id"])[req.params.shortURL]) {
     // check if the user is logged in when trying to edit the longURL
     urlDatabase[req.params.shortURL].longURL = prefixHttp(
       req.body.submittedURL
@@ -158,7 +155,7 @@ app.post("/login", (req, res) => {
   */
   if ((username = checkExistingEmail(req.body.email))) {
     if ((userID = checkPassword(username, req.body.password))) {
-      req.session.user_id = userID;
+      res.cookie("user_id", userID);
     } else {
       res.statusCode = 403;
       res.send("403: password or email is not correct");
@@ -172,7 +169,7 @@ app.post("/login", (req, res) => {
 });
 
 app.post("/logout", (req, res) => {
-  req.session = null;
+  res.clearCookie("user_id");
   res.redirect("/urls");
 });
 
@@ -195,9 +192,9 @@ app.post("/register", (req, res) => {
       email: req.body.email,
     };
     users[randomUserID] = newUser;
-    // console.log(req.body.password)
-    // console.log(newUser.password);
-    req.session.user_id = newUser.id;
+    console.log(req.body.password)
+    console.log(newUser.password);
+    res.cookie("user_id", newUser.id);
     res.redirect("/urls");
   }
 });
