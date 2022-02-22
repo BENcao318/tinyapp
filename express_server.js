@@ -13,8 +13,8 @@ const {
 } = require("./helpers");
 
 const urlDatabase = {
-  b2xVn2: { longURL: "http://www.lighthouselabs.ca", userID: "aJ48lW" },
-  "9sm5xK": { longURL: "http://www.google.com", userID: "aj48lW" },
+  b2xVn2: { longURL: "http://www.lighthouselabs.ca", userID: "aJ48lW", visitNum: 0 },
+  "9sm5xK": { longURL: "http://www.google.com", userID: "aj48lW", visitNum: 0 },
 };
 
 const users = {
@@ -30,6 +30,8 @@ const users = {
   },
 };
 
+const visitors = {};
+
 app.use(bodyParser.urlencoded({ extended: true })); // Use bodyParser to parse the data from request body
 app.set("view engine", "ejs"); // Use ejs as the render engine
 app.use(
@@ -37,7 +39,7 @@ app.use(
     name: "session",
     keys: ["Sxo3=T%?3]MGYi:"],
   })
-); // Use Cookie Session to parse the cookie data
+); // Use Cookie Session to parse the cookies
 app.use(methodOverride('_method'));
 
 /*
@@ -63,10 +65,21 @@ app.get("/urls/new", (req, res) => {
 show the urls_show for corresponding shortURL
 */
 app.get("/urls/:shortURL", (req, res) => {
+  let uniqueVisitorNum = 0;
+  let timeStamps = undefined;
+
+  if(visitors[req.params.shortURL]){
+    uniqueVisitorNum = Object.keys(visitors[req.params.shortURL]).length;
+    timeStamps = visitors[req.params.shortURL][req.session.user_id];
+  }
+
   const templateVars = {
     shortURL: req.params.shortURL,
     longURL: urlDatabase[req.params.shortURL].longURL,
     username: req.session.user_id,
+    visitNum: urlDatabase[req.params.shortURL].visitNum,
+    uniqueVisitorNum,
+    timeStamps, 
   };
   res.render("urls_show", templateVars);
 });
@@ -103,6 +116,21 @@ app.get("/login", (req, res) => {
 Redirect to the long url address when clicking the short url on short url page
 */
 app.get("/u/:shortURL", (req, res) => {
+  const visitor_id = req.session.user_id;
+  const timeStamp = new Date().toISOString();
+
+  urlDatabase[req.params.shortURL].visitNum++;            //tracking of total visits
+  
+  // Create visitor_id obj with timestamp arrays in the visitors obj for recording each unique user. 
+  if(visitors[req.params.shortURL]) {                       
+    if(visitors[req.params.shortURL][visitor_id]){
+      visitors[req.params.shortURL][visitor_id].push(timeStamp);
+    }
+  } else {
+    visitors[req.params.shortURL] = {};
+    visitors[req.params.shortURL][visitor_id] = [timeStamp]
+  }
+
   const longURL = urlDatabase[req.params.shortURL].longURL;
   res.redirect(longURL);
 });
@@ -116,6 +144,7 @@ app.post("/urls", (req, res) => {
     urlDatabase[generateRandomString()] = {
       longURL: prefixHttp(req.body.longURL),
       userID: req.session.user_id,
+      visitNum: 0,
     };
 
     console.log(req.body); // Log the POST request body to the console
@@ -224,3 +253,4 @@ function generateRandomString() {
   }
   return result;
 }
+
